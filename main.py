@@ -1,8 +1,13 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+from youtube_transcript_api.proxies import WebshareProxyConfig
 from urllib.parse import urlparse, parse_qs
+import os
 import re
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(
     title="YouTube Transcript API",
@@ -67,8 +72,21 @@ def get_transcript_by_url(
     return _fetch_transcript(video_id, lang, format)
 
 
+def _make_api() -> YouTubeTranscriptApi:
+    username = os.getenv("WEBSHARE_PROXY_USERNAME")
+    password = os.getenv("WEBSHARE_PROXY_PASSWORD")
+    if username and password:
+        return YouTubeTranscriptApi(
+            proxy_config=WebshareProxyConfig(
+                proxy_username=username,
+                proxy_password=password,
+            )
+        )
+    return YouTubeTranscriptApi()
+
+
 def _fetch_transcript(video_id: str, lang: str, format: str):
-    api = YouTubeTranscriptApi()
+    api = _make_api()
     try:
         # Try preferred language first, fallback to English, then any available
         try:
